@@ -13,6 +13,7 @@
   "bugs": {
     "url": "https://github.com/juliosaraiva/vscode-function-folding/issues"
   },
+  "icon": "images/icon.png",
   "keywords": [
     "folding",
     "functions",
