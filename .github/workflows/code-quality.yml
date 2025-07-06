@@ -1,0 +1,130 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  quality-check:
+    name: Code Quality Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Needed for SonarCloud
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Run linting with output
+      run: |
+        npm run lint > eslint-report.txt 2>&1 || true
+        cat eslint-report.txt
+    
+    - name: Compile TypeScript
+      run: npm run compile
+    
+    - name: Generate test coverage
+      run: |
+        # Add test coverage when tests are implemented
+        echo "Test coverage will be generated here"
+      continue-on-error: true
+    
+    - name: Check code formatting
+      run: |
+        # Check if code is properly formatted
+        if command -v prettier &> /dev/null; then
+          prettier --check "src/**/*.ts" || echo "⚠️  Code formatting issues found"
+        else
+          echo "ℹ️  Prettier not configured"
+        fi
+      continue-on-error: true
+    
+    - name: Analyze bundle size
+      run: |
+        # Package the extension and check size
+        npm install -g vsce
+        vsce package
+        PACKAGE_SIZE=$(du -h *.vsix | cut -f1)
+        echo "📦 Extension package size: $PACKAGE_SIZE"
+        
+        # Check if size is reasonable (warn if > 10MB)
+        SIZE_BYTES=$(du -b *.vsix | cut -f1)
+        if [ "$SIZE_BYTES" -gt 10485760 ]; then
+          echo "⚠️  Package size is quite large (>10MB). Consider optimizing."
+        else
+          echo "✅ Package size is reasonable"
+        fi
+    
+    - name: Security scan
+      run: |
+        # Run npm audit for security vulnerabilities
+        echo "🔍 Running security scan..."
+        npm audit --audit-level=moderate || echo "⚠️  Security vulnerabilities found"
+    
+    # Uncomment and configure when you want to add SonarCloud analysis
+    # - name: SonarCloud Scan
+    #   uses: SonarSource/sonarcloud-github-action@master
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    
+    - name: Comment PR with quality report
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          
+          let report = '## 🔍 Code Quality Report\n\n';
+          
+          // Add ESLint results if available
+          if (fs.existsSync('eslint-report.txt')) {
+            const eslintOutput = fs.readFileSync('eslint-report.txt', 'utf8');
+            if (eslintOutput.trim()) {
+              report += '### ESLint Results\n```\n' + eslintOutput + '\n```\n\n';
+            } else {
+              report += '### ESLint Results\n✅ No linting issues found\n\n';
+            }
+          }
+          
+          report += '### Build Status\n✅ TypeScript compilation successful\n\n';
+          report += '### Package Analysis\n📦 Extension packaged successfully\n\n';
+          report += '---\n*This report was generated automatically by the Code Quality workflow*';
+          
+          // Find existing comment and update it, or create new one
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+          
+          const existingComment = comments.find(comment => 
+            comment.body.includes('Code Quality Report')
+          );
+          
+          if (existingComment) {
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: existingComment.id,
+              body: report
+            });
+          } else {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: report
+            });
+          }

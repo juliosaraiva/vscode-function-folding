@@ -1,0 +1,148 @@
+name: Version Bump
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Type of version bump'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      pre_release:
+        description: 'Create pre-release version'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  version-bump:
+    name: Bump Version and Create Tag
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Configure Git
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+    
+    - name: Get current version
+      id: current_version
+      run: |
+        CURRENT_VERSION=$(node -p "require('./package.json').version")
+        echo "CURRENT_VERSION=${CURRENT_VERSION}" >> $GITHUB_OUTPUT
+    
+    - name: Bump version
+      id: bump_version
+      run: |
+        if [ "${{ github.event.inputs.pre_release }}" = "true" ]; then
+          # Create pre-release version
+          NEW_VERSION=$(npm version pre${{ github.event.inputs.version_type }} --no-git-tag-version)
+        else
+          # Create regular version
+          NEW_VERSION=$(npm version ${{ github.event.inputs.version_type }} --no-git-tag-version)
+        fi
+        
+        # Remove 'v' prefix for output
+        NEW_VERSION=${NEW_VERSION#v}
+        echo "NEW_VERSION=${NEW_VERSION}" >> $GITHUB_OUTPUT
+    
+    - name: Update CHANGELOG.md
+      run: |
+        # Create a new changelog entry
+        TODAY=$(date '+%Y-%m-%d')
+        NEW_VERSION="${{ steps.bump_version.outputs.NEW_VERSION }}"
+        
+        # Create temporary file with new entry
+        cat > changelog_entry.md << EOF
+        
+        ## [${NEW_VERSION}] - ${TODAY}
+        
+        ### Added
+        - 
+        
+        ### Changed
+        - 
+        
+        ### Fixed
+        - 
+        
+        EOF
+        
+        # Insert the new entry after the "Unreleased" section
+        sed -i '/## \[Unreleased\]/r changelog_entry.md' CHANGELOG.md
+        
+        # Clean up
+        rm changelog_entry.md
+    
+    - name: Run tests and build
+      run: |
+        npm run lint
+        npm run compile
+        npm test
+      continue-on-error: true
+    
+    - name: Commit changes
+      run: |
+        git add package.json CHANGELOG.md
+        git commit -m "chore(release): bump version to v${{ steps.bump_version.outputs.NEW_VERSION }}"
+    
+    - name: Create and push tag
+      run: |
+        git tag -a "v${{ steps.bump_version.outputs.NEW_VERSION }}" -m "Release v${{ steps.bump_version.outputs.NEW_VERSION }}"
+        git push origin main
+        git push origin "v${{ steps.bump_version.outputs.NEW_VERSION }}"
+    
+    - name: Create Release Draft
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ steps.bump_version.outputs.NEW_VERSION }}
+        release_name: Release v${{ steps.bump_version.outputs.NEW_VERSION }}
+        body: |
+          ## 🎉 Release v${{ steps.bump_version.outputs.NEW_VERSION }}
+          
+          ### What's Changed
+          Please update this section with the actual changes made in this release.
+          
+          ### Installation
+          ```bash
+          code --install-extension function-folding-${{ steps.bump_version.outputs.NEW_VERSION }}.vsix
+          ```
+          
+          **Full Changelog**: https://github.com/${{ github.repository }}/compare/v${{ steps.current_version.outputs.CURRENT_VERSION }}...v${{ steps.bump_version.outputs.NEW_VERSION }}
+        draft: true
+        prerelease: ${{ github.event.inputs.pre_release }}
+    
+    - name: Summary
+      run: |
+        echo "## 🎉 Version Bump Complete!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Previous Version**: v${{ steps.current_version.outputs.CURRENT_VERSION }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **New Version**: v${{ steps.bump_version.outputs.NEW_VERSION }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Bump Type**: ${{ github.event.inputs.version_type }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Pre-release**: ${{ github.event.inputs.pre_release }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Next Steps:" >> $GITHUB_STEP_SUMMARY
+        echo "1. Update the release notes in GitHub" >> $GITHUB_STEP_SUMMARY
+        echo "2. Publish the release when ready" >> $GITHUB_STEP_SUMMARY
+        echo "3. The release workflow will automatically publish to VS Code Marketplace" >> $GITHUB_STEP_SUMMARY

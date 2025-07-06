@@ -1,0 +1,36 @@
+out/
+node_modules/
+.vscode-test/
+*.vsix
+.DS_Store
+.env
+*.log
+.cache/
+coverage/
+.nyc_output/
+dist/
+temp/
+tmp/
+*.tgz
+*.tar.gz
+
+# CI/CD artifacts
+eslint-report.txt
+outdated.json
+changelog_entry.md
+
+# OS generated files
+Thumbs.db
+.DS_Store?
+ehthumbs.db
+Icon?
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.suo
+.ntvs*
+.njsproj
+.sln
+.sw?

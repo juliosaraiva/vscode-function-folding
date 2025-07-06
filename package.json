@@ -1,0 +1,100 @@
+{
+  "name": "function-folding",
+  "displayName": "Function Folding",
+  "description": "Smart function folding for JavaScript, TypeScript, and Python. Fold only functions while keeping other code visible for better code structure focus.",
+  "version": "1.0.0",
+  "publisher": "juliosaraiva",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/juliosaraiva/function-folding"
+  },
+  "homepage": "https://github.com/juliosaraiva/function-folding#readme",
+  "bugs": {
+    "url": "https://github.com/juliosaraiva/function-folding/issues"
+  },
+  "keywords": [
+    "folding",
+    "functions",
+    "javascript",
+    "typescript",
+    "python",
+    "code-folding",
+    "productivity",
+    "developer-tools"
+  ],
+  "categories": [
+    "Other"
+  ],
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "extension.foldAllFunctions",
+        "title": "Fold All Functions",
+        "category": "Function Folding"
+      },
+      {
+        "command": "extension.unfoldAllFunctions",
+        "title": "Unfold All Functions",
+        "category": "Function Folding"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "extension.foldAllFunctions",
+        "key": "ctrl+alt+f",
+        "mac": "cmd+alt+f",
+        "when": "editorTextFocus && (editorLangId == javascript || editorLangId == typescript || editorLangId == python)"
+      },
+      {
+        "command": "extension.unfoldAllFunctions",
+        "key": "ctrl+alt+u",
+        "mac": "cmd+alt+u",
+        "when": "editorTextFocus && (editorLangId == javascript || editorLangId == typescript || editorLangId == python)"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "extension.foldAllFunctions",
+          "when": "editorLangId == javascript || editorLangId == typescript || editorLangId == python",
+          "group": "folding"
+        },
+        {
+          "command": "extension.unfoldAllFunctions",
+          "when": "editorLangId == javascript || editorLangId == typescript || editorLangId == python",
+          "group": "folding"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "lint:fix": "eslint src --ext ts --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "test": "echo \"Tests will be added later\" && exit 0",
+    "package": "vsce package",
+    "release:patch": "npm version patch && git push && git push --tags",
+    "release:minor": "npm version minor && git push && git push --tags",
+    "release:major": "npm version major && git push && git push --tags"
+  },
+  "devDependencies": {
+    "@types/node": "16.x",
+    "@types/vscode": "^1.74.0",
+    "@typescript-eslint/eslint-plugin": "^5.45.0",
+    "@typescript-eslint/parser": "^5.45.0",
+    "eslint": "^8.28.0",
+    "prettier": "^3.6.2",
+    "typescript": "^4.9.4"
+  }
+}
